@@ -1,5 +1,6 @@
 from PySide6 import QtOpenGLWidgets
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import *
 from OpenGL.GL import *
 from MyModel import MyModel
@@ -104,11 +105,8 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         self.m_R = cx + (sizex * 0.5)
         self.m_B = cy - (sizey * 0.5)
         self.m_T = cy + (sizey * 0.5)
-        # Establish the clipping volume by setting up an
-        # orthographic projection
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(self.m_L, self.m_R, self.m_B, self.m_T, -1.0, 1.0)
+        
+        self.update()
 
     def mousePressEvent(self, event):
         # Pan with the left mouse button
@@ -152,3 +150,21 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         # Stop panning when the left mouse button is released
         if event.button() == Qt.MouseButton.LeftButton:
             self.m_isPanning = False
+
+    def wheelEvent(self, event: QWheelEvent):
+        """
+        Handles mouse wheel events for zooming.
+        """
+        # Get the angle of the wheel delta
+        angle = event.angleDelta().y()
+        
+        # Set a zoom factor
+        zoom_factor = 1.1
+
+        if angle > 0:
+            # Zoom in (scroll up) by making the world window smaller
+            self.scaleWorldWindow(1 / zoom_factor)
+        elif angle < 0:
+            # Zoom out (scroll down) by making the world window larger
+            self.scaleWorldWindow(zoom_factor)
+
