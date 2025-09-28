@@ -1,4 +1,5 @@
 from PySide6 import QtOpenGLWidgets
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import *
 from OpenGL.GL import *
 from MyModel import MyModel
@@ -15,12 +16,14 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         self.m_R = 1000.0
         self.m_B = -1000.0
         self.m_T = 1000.0
-        self.list = None
+
+        self.m_isPanning = False
+        self.m_panStartX = 0
+        self.m_panStartY = 0
 
     def initializeGL(self):
         glClearColor(1.0, 1.0, 1.0, 1.0)
         glClear(GL_COLOR_BUFFER_BIT)
-        self.list = glGenLists(1)
 
     def resizeGL(self, _width, _height):
         # store GL canvas sizes in object properties
@@ -46,15 +49,21 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
     def paintGL(self):
         # clear the buffer with the current clear color
         glClear(GL_COLOR_BUFFER_BIT)
-        # draw the model
+
+        # It's good practice to reset the projection matrix on each paint
+        # to ensure the viewport is correctly set.
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        glOrtho(self.m_L, self.m_R, self.m_B, self.m_T, -1.0, 1.0)
+
+        # Switch back to model-view matrix for drawing
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        
         if (self.m_model==None)or(self.m_model.isEmpty()):
             return
-        glCallList(self.list)
-        glDeleteLists(self.list, 1)
-        self.list = glGenLists(1)
-        glNewList(self.list, GL_COMPILE)
-        # Display model polygon RGB color at its vertices
-        # interpolating smoothly the color in the interior
+
+        # Draw the model directly
         verts = self.m_model.getVerts()
         glShadeModel(GL_SMOOTH)
         glColor3f(0.0, 1.0, 0.0) # green
@@ -62,20 +71,22 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         for vtx in verts:
             glVertex2f(vtx.getX(), vtx.getY())
         glEnd()
-        glEndList()
 
     def setModel(self,_model: MyModel):
         self.m_model = _model
+        self.update()
 
     def fitWorldToViewport(self):
-        print("fitWorldToViewport")
-        if self.m_model == None:
+        if self.m_model == None or self.m_model.isEmpty():
             return
         self.m_L,self.m_R,self.m_B,self.m_T = self.m_model.getBoundBox()
         self.scaleWorldWindow(1.10)
         self.update()
 
     def scaleWorldWindow(self,_scaleFac):
+        # Avoid division by zero
+        if self.m_w == 0:
+            return
         # Compute canvas viewport distortion ratio.
         vpr = self.m_h / self.m_w
         # Get current window center.
@@ -99,17 +110,45 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         glLoadIdentity()
         glOrtho(self.m_L, self.m_R, self.m_B, self.m_T, -1.0, 1.0)
 
-    def panWorldWindow(self, _panFacX, _panFacY):
-        # Compute pan distances in horizontal and vertical directions.
-        panX = (self.m_R - self.m_L) * _panFacX
-        panY = (self.m_T - self.m_B) * _panFacY
-        # Shift current window.
-        self.m_L += panX
-        self.m_R += panX
-        self.m_B += panY
-        self.m_T += panY
-        # Establish the clipping volume by setting up an
-        # orthographic projection
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        glOrtho(self.m_L, self.m_R, self.m_B, self.m_T, -1.0, 1.0)
+    def mousePressEvent(self, event):
+        # Pan with the left mouse button
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.m_isPanning = True
+            self.m_panStartX = event.position().x()
+            self.m_panStartY = event.position().y()
+
+    def mouseMoveEvent(self, event):
+        if self.m_isPanning:
+            # Check for valid canvas size to avoid division by zero
+            if self.m_w == 0 or self.m_h == 0:
+                return
+                
+            endX = event.position().x()
+            endY = event.position().y()
+            
+            # Calculate displacement in pixels
+            dx_pix = endX - self.m_panStartX
+            dy_pix = endY - self.m_panStartY
+
+            # Convert pixel displacement to world coordinates displacement
+            world_w = self.m_R - self.m_L
+            world_h = self.m_T - self.m_B
+            
+            dx_world = dx_pix * world_w / self.m_w
+            # Y is inverted in screen coordinates, so we negate the displacement
+            dy_world = -dy_pix * world_h / self.m_h 
+
+            # Update the model's vertices
+            if self.m_model:
+                self.m_model.panModel(dx_world, dy_world)
+
+            # Update pan start position for the next mouse move event
+            self.m_panStartX = endX
+            self.m_panStartY = endY
+            
+            self.update()
+
+    def mouseReleaseEvent(self, event):
+        # Stop panning when the left mouse button is released
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.m_isPanning = False

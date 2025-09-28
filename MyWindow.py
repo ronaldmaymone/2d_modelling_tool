@@ -14,11 +14,11 @@ class MyWindow(QMainWindow):
         self.model = MyModel()
         self.canvas.setModel(self.model)
         # create a Toolbar
-        tb = self.addToolBar("File")
+        toolbar = self.addToolBar("File")
         fit = QAction(QIcon("icons/fit.jpg"),"fit",self)
-        tb.addAction(fit)
-        tb.actionTriggered[QAction].connect(self.tbpressed)
+        toolbar.addAction(fit)
+        toolbar.actionTriggered[QAction].connect(self.onClickToolbar)
 
-    def tbpressed(self,a):
+    def onClickToolbar(self,a):
         if a.text() == "fit":
             self.canvas.fitWorldToViewport()
