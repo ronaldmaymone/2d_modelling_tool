@@ -1,58 +1,33 @@
-class MyPoint:
-    # Constructor with default values to avoid issues with multiple __init__ methods
-    def __init__(self, _x=0.0, _y=0.0):
-        self.m_x = _x
-        self.m_y = _y
-
-    def setX(self, _x):
-        self.m_x = _x
-
-    def setY(self, _y):
-        self.m_y = _y
-
-    def getX(self):
-        return self.m_x
-
-    def getY(self):
-        return self.m_y
-
+from MyShapes import Shape
 
 class MyModel:
     def __init__(self):
-        self.m_verts = []
-        p1 = MyPoint(100.0, 100.0)
-        p2 = MyPoint(200.0, 100.0)
-        p3 = MyPoint(150.0, 175.0)
-        self.m_verts.append(p1)
-        self.m_verts.append(p2)
-        self.m_verts.append(p3)
+        self.m_shapes = []
 
-    def getVerts(self):
-        return self.m_verts
+    def getShapes(self):
+        return self.m_shapes
+    
+    def addShape(self, shape: Shape):
+        self.m_shapes.append(shape)
 
     def isEmpty(self):
-        return len(self.m_verts) == 0
+        return len(self.m_shapes) == 0
     
     def getBoundBox(self):
-        if len(self.m_verts) < 1:
-            return 0.0, 10.0, 0.0, 10.0
+        if self.isEmpty():
+            return -1000.0, 1000.0, -1000.0, 1000.0
         
-        xmin = self.m_verts[0].getX()
-        xmax = xmin
-        ymin = self.m_verts[0].getY()
-        ymax = ymin
-        for i in range(1, len(self.m_verts)):
-            if self.m_verts[i].getX() < xmin:
-                xmin = self.m_verts[i].getX()
-            if self.m_verts[i].getX() > xmax:
-                xmax = self.m_verts[i].getX()
-            if self.m_verts[i].getY() < ymin:
-                ymin = self.m_verts[i].getY()
-            if self.m_verts[i].getY() > ymax:
-                ymax = self.m_verts[i].getY()
+        xmin, xmax, ymin, ymax = self.m_shapes[0].get_bounding_box()
+
+        for i in range(1, len(self.m_shapes)):
+            s_xmin, s_xmax, s_ymin, s_ymax = self.m_shapes[i].get_bounding_box()
+            if s_xmin < xmin: xmin = s_xmin
+            if s_xmax > xmax: xmax = s_xmax
+            if s_ymin < ymin: ymin = s_ymin
+            if s_ymax > ymax: ymax = s_ymax
+            
         return xmin, xmax, ymin, ymax
 
-    def panModel(self, dx, dy):
-        for vtx in self.m_verts:
-            vtx.setX(vtx.getX() + dx)
-            vtx.setY(vtx.getY() + dy)
+    def clear(self):
+        """Removes all shapes from the model."""
+        self.m_shapes.clear()

@@ -1,37 +1,68 @@
-from PySide6.QtWidgets import *
-from PySide6.QtGui import *
-from MyCanvas import *
-from MyModel import *
+from PySide6.QtWidgets import QMainWindow
+from PySide6.QtGui import QAction, QIcon, QActionGroup
+from MyCanvas import MyCanvas, CanvasModes
+from MyModel import MyModel
 
 class MyWindow(QMainWindow):
     def __init__(self):
         super(MyWindow, self).__init__()
-        self.setGeometry(100,100,600,400)
+        self.setGeometry(100, 100, 800, 600)
         self.setWindowTitle("MyGLDrawer")
+        
         self.canvas = MyCanvas()
         self.setCentralWidget(self.canvas)
-        # create a model object and pass to canvas
+        
         self.model = MyModel()
         self.canvas.setModel(self.model)
-        # Create Toolbars
-        # 1. Manipulation Toolbar
-        manipulation_toolbar = self.addToolBar("File")
-        fit = QAction(QIcon("icons/fit.jpg"),"fit",self)
-        manipulation_toolbar.addAction(fit)
-        manipulation_toolbar.actionTriggered[QAction].connect(self.manipToolbarClick)
+        
+        # --- Create Actions ---
+        pan_action = QAction(QIcon("icons/pan.png"), "Pan", self)
+        pan_action.setCheckable(True)
+        pan_action.setChecked(True)
+        
+        fit_action = QAction(QIcon("icons/fit.png"), "Fit", self)
 
-        # 2. Creation Toolbar
-        creation_toolbar = self.addToolBar("Create")
-        line = QAction(QIcon("icons/line.jpg"),"line",self)
-        creation_toolbar.addAction(line)
-        creation_toolbar.actionTriggered[QAction].connect(self.creationToolbarClick)
+        clear_action = QAction(QIcon("icons/clear.png"), "Clear All", self)
+        
+        line_action = QAction(QIcon("icons/line.png"), "Line", self)
+        line_action.setCheckable(True)
 
-    def manipToolbarClick(self,a):
-        if a.text() == "fit":
-            self.canvas.fitWorldToViewport()
-        elif a.text() == "pan":
+        quad_bezier_action = QAction(QIcon("icons/quad.png"), "Quadratic Bezier", self)
+        quad_bezier_action.setCheckable(True)
+
+        cubic_bezier_action = QAction(QIcon("icons/cubic.png"), "Cubic Bezier", self)
+        cubic_bezier_action.setCheckable(True)
+
+        # --- Create a single Toolbar ---
+        toolbar = self.addToolBar("Tools")
+        toolbar.addAction(pan_action)
+        toolbar.addAction(fit_action)
+        toolbar.addAction(clear_action)
+        toolbar.addSeparator()
+        toolbar.addAction(line_action)
+        toolbar.addAction(quad_bezier_action)
+        toolbar.addAction(cubic_bezier_action)
+
+        # --- Group mode actions for mutual exclusivity ---
+        self.mode_action_group = QActionGroup(self)
+        self.mode_action_group.addAction(pan_action)
+        self.mode_action_group.addAction(line_action)
+        self.mode_action_group.addAction(quad_bezier_action)
+        self.mode_action_group.addAction(cubic_bezier_action)
+        self.mode_action_group.setExclusive(True)
+
+        # --- Connect Signals ---
+        fit_action.triggered.connect(self.canvas.fitWorldToViewport)
+        clear_action.triggered.connect(self.canvas.clearCanvas)
+        self.mode_action_group.triggered.connect(self.on_mode_action_triggered)
+
+    def on_mode_action_triggered(self, action: QAction):
+        text = action.text()
+        if text == "Pan":
             self.canvas.changeCanvasMode(CanvasModes.FREE_MOVE)
-
-    def creationToolbarClick(self,a):
-        if a.text() == "line":
+        elif text == "Line":
             self.canvas.changeCanvasMode(CanvasModes.LINE_CREATION)
+        elif text == "Quadratic Bezier":
+            self.canvas.changeCanvasMode(CanvasModes.QUAD_BEZIER_CREATION)
+        elif text == "Cubic Bezier":
+            self.canvas.changeCanvasMode(CanvasModes.CUBIC_BEZIER_CREATION)
