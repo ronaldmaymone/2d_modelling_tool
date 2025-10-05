@@ -13,12 +13,25 @@ class MyWindow(QMainWindow):
         # create a model object and pass to canvas
         self.model = MyModel()
         self.canvas.setModel(self.model)
-        # create a Toolbar
-        toolbar = self.addToolBar("File")
+        # Create Toolbars
+        # 1. Manipulation Toolbar
+        manipulation_toolbar = self.addToolBar("File")
         fit = QAction(QIcon("icons/fit.jpg"),"fit",self)
-        toolbar.addAction(fit)
-        toolbar.actionTriggered[QAction].connect(self.onClickToolbar)
+        manipulation_toolbar.addAction(fit)
+        manipulation_toolbar.actionTriggered[QAction].connect(self.manipToolbarClick)
 
-    def onClickToolbar(self,a):
+        # 2. Creation Toolbar
+        creation_toolbar = self.addToolBar("Create")
+        line = QAction(QIcon("icons/line.jpg"),"line",self)
+        creation_toolbar.addAction(line)
+        creation_toolbar.actionTriggered[QAction].connect(self.creationToolbarClick)
+
+    def manipToolbarClick(self,a):
         if a.text() == "fit":
             self.canvas.fitWorldToViewport()
+        elif a.text() == "pan":
+            self.canvas.changeCanvasMode(CanvasModes.FREE_MOVE)
+
+    def creationToolbarClick(self,a):
+        if a.text() == "line":
+            self.canvas.changeCanvasMode(CanvasModes.LINE_CREATION)

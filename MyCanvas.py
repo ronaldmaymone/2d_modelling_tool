@@ -3,7 +3,17 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import *
 from OpenGL.GL import *
-from MyModel import MyModel
+from MyModel import MyModel, MyPoint
+from enum import Enum
+
+class CanvasModes(Enum):
+    FREE_MOVE = 0
+    LINE_CREATION = 1
+    POLILINE_CREATION = 2
+    QUAD_BEZIER_CREATION = 3
+    CUBIC_BEZIER_CREATION = 4
+    CIRCLE_CREATION = 5
+    CIRCLE_ARC_CREATION = 6
 
 class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
     def __init__(self):
@@ -21,6 +31,8 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         self.m_isPanning = False
         self.m_panStartX = 0
         self.m_panStartY = 0
+
+        self.m_currentMode = CanvasModes.FREE_MOVE
 
     def initializeGL(self):
         glClearColor(1.0, 1.0, 1.0, 1.0)
@@ -109,42 +121,22 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         self.update()
 
     def mousePressEvent(self, event):
-        # Pan with the left mouse button
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.m_isPanning = True
-            self.m_panStartX = event.position().x()
-            self.m_panStartY = event.position().y()
-
+        match self.m_currentMode:
+            case CanvasModes.FREE_MOVE:
+                if event.button() == Qt.MouseButton.LeftButton:
+                    self.m_isPanning = True
+                    self.m_panStartX = event.position().x()
+                    self.m_panStartY = event.position().y()
+            case CanvasModes.LINE_CREATION:
+                self.mousePressInLineMode(event)
+        
     def mouseMoveEvent(self, event):
-        if self.m_isPanning:
-            # Check for valid canvas size to avoid division by zero
-            if self.m_w == 0 or self.m_h == 0:
-                return
-                
-            endX = event.position().x()
-            endY = event.position().y()
-            
-            # Calculate displacement in pixels
-            dx_pix = endX - self.m_panStartX
-            dy_pix = endY - self.m_panStartY
-
-            # Convert pixel displacement to world coordinates displacement
-            world_w = self.m_R - self.m_L
-            world_h = self.m_T - self.m_B
-            
-            dx_world = dx_pix * world_w / self.m_w
-            # Y is inverted in screen coordinates, so we negate the displacement
-            dy_world = -dy_pix * world_h / self.m_h 
-
-            # Update the model's vertices
-            if self.m_model:
-                self.m_model.panModel(dx_world, dy_world)
-
-            # Update pan start position for the next mouse move event
-            self.m_panStartX = endX
-            self.m_panStartY = endY
-            
-            self.update()
+        match self.m_currentMode:
+            case CanvasModes.FREE_MOVE:
+                if self.m_isPanning:
+                    self.panCanvas(event)
+            case CanvasModes.LINE_CREATION:
+                self.mouseMoveInLineMode(event)
 
     def mouseReleaseEvent(self, event):
         # Stop panning when the left mouse button is released
@@ -168,3 +160,51 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
             # Zoom out (scroll down) by making the world window larger
             self.scaleWorldWindow(zoom_factor)
 
+    def mousePressInLineMode(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            if self.m_model is None:
+                return
+            # Convert mouse position to world coordinates
+            mouse_x = event.position().x()
+            mouse_y = event.position().y()
+            world_w = self.m_R - self.m_L
+            world_h = self.m_T - self.m_B
+            x_world = self.m_L + (mouse_x * world_w / self.m_w)
+            y_world = self.m_T - (mouse_y * world_h / self.m_h)  # Invert Y axis
+            
+            initial_point = MyPoint(x_world, y_world)
+
+    def mouseMoveInLineMode(self, event):
+        pass
+    def panCanvas(self, event):
+        # Check for valid canvas size to avoid division by zero
+        if self.m_w == 0 or self.m_h == 0:
+            return
+            
+        endX = event.position().x()
+        endY = event.position().y()
+        
+        # Calculate displacement in pixels
+        dx_pix = endX - self.m_panStartX
+        dy_pix = endY - self.m_panStartY
+
+        # Convert pixel displacement to world coordinates displacement
+        world_w = self.m_R - self.m_L
+        world_h = self.m_T - self.m_B
+        
+        dx_world = dx_pix * world_w / self.m_w
+        # Y is inverted in screen coordinates, so we negate the displacement
+        dy_world = -dy_pix * world_h / self.m_h 
+
+        # Update the model's vertices
+        if self.m_model:
+            self.m_model.panModel(dx_world, dy_world)
+
+        # Update pan start position for the next mouse move event
+        self.m_panStartX = endX
+        self.m_panStartY = endY
+        
+        self.update()
+    
+    def changeCanvasMode(self, mode: CanvasModes):
+        self.m_currentMode = mode
