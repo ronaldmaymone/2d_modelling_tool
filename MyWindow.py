@@ -1,3 +1,4 @@
+# MyWindow.py
 from PySide6.QtWidgets import QMainWindow
 from PySide6.QtGui import QAction, QIcon, QActionGroup
 from MyCanvas import MyCanvas, CanvasModes
@@ -21,17 +22,25 @@ class MyWindow(QMainWindow):
         pan_action.setChecked(True)
         
         fit_action = QAction(QIcon("icons/fit.png"), "Fit", self)
-
         clear_action = QAction(QIcon("icons/clear.png"), "Clear All", self)
         
         line_action = QAction(QIcon("icons/line.png"), "Line", self)
         line_action.setCheckable(True)
+
+        polyline_action = QAction(QIcon("icons/polyline.png"), "Polyline", self)
+        polyline_action.setCheckable(True)
 
         quad_bezier_action = QAction(QIcon("icons/quad.png"), "Quadratic Bezier", self)
         quad_bezier_action.setCheckable(True)
 
         cubic_bezier_action = QAction(QIcon("icons/cubic.png"), "Cubic Bezier", self)
         cubic_bezier_action.setCheckable(True)
+
+        circle_action = QAction(QIcon("icons/circle.png"), "Circle", self)
+        circle_action.setCheckable(True)
+
+        arc_action = QAction(QIcon("icons/arc.png"), "Circle Arc", self)
+        arc_action.setCheckable(True)
 
         # --- Create a single Toolbar ---
         toolbar = self.addToolBar("Tools")
@@ -40,6 +49,9 @@ class MyWindow(QMainWindow):
         toolbar.addAction(clear_action)
         toolbar.addSeparator()
         toolbar.addAction(line_action)
+        toolbar.addAction(polyline_action)
+        toolbar.addAction(circle_action)
+        toolbar.addAction(arc_action)
         toolbar.addAction(quad_bezier_action)
         toolbar.addAction(cubic_bezier_action)
 
@@ -47,8 +59,11 @@ class MyWindow(QMainWindow):
         self.mode_action_group = QActionGroup(self)
         self.mode_action_group.addAction(pan_action)
         self.mode_action_group.addAction(line_action)
+        self.mode_action_group.addAction(polyline_action)
         self.mode_action_group.addAction(quad_bezier_action)
         self.mode_action_group.addAction(cubic_bezier_action)
+        self.mode_action_group.addAction(circle_action)
+        self.mode_action_group.addAction(arc_action)
         self.mode_action_group.setExclusive(True)
 
         # --- Connect Signals ---
@@ -62,7 +77,13 @@ class MyWindow(QMainWindow):
             self.canvas.changeCanvasMode(CanvasModes.FREE_MOVE)
         elif text == "Line":
             self.canvas.changeCanvasMode(CanvasModes.LINE_CREATION)
+        elif text == "Polyline":
+            self.canvas.changeCanvasMode(CanvasModes.POLYLINE_CREATION)
         elif text == "Quadratic Bezier":
             self.canvas.changeCanvasMode(CanvasModes.QUAD_BEZIER_CREATION)
         elif text == "Cubic Bezier":
             self.canvas.changeCanvasMode(CanvasModes.CUBIC_BEZIER_CREATION)
+        elif text == "Circle":
+            self.canvas.changeCanvasMode(CanvasModes.CIRCLE_CREATION)
+        elif text == "Circle Arc":
+            self.canvas.changeCanvasMode(CanvasModes.CIRCLE_ARC_CREATION)
