@@ -20,6 +20,10 @@ class MyWindow(QMainWindow):
         pan_action = QAction(QIcon("icons/pan.png"), "Pan", self)
         pan_action.setCheckable(True)
         pan_action.setChecked(True)
+
+        # --- NEW ---
+        select_action = QAction(QIcon("icons/select.png"), "Select", self)
+        select_action.setCheckable(True)
         
         fit_action = QAction(QIcon("icons/fit.png"), "Fit", self)
         clear_action = QAction(QIcon("icons/clear.png"), "Clear All", self)
@@ -45,6 +49,7 @@ class MyWindow(QMainWindow):
         # --- Create a single Toolbar ---
         toolbar = self.addToolBar("Tools")
         toolbar.addAction(pan_action)
+        toolbar.addAction(select_action) # --- NEW ---
         toolbar.addAction(fit_action)
         toolbar.addAction(clear_action)
         toolbar.addSeparator()
@@ -58,6 +63,7 @@ class MyWindow(QMainWindow):
         # --- Group mode actions for mutual exclusivity ---
         self.mode_action_group = QActionGroup(self)
         self.mode_action_group.addAction(pan_action)
+        self.mode_action_group.addAction(select_action) # --- NEW ---
         self.mode_action_group.addAction(line_action)
         self.mode_action_group.addAction(polyline_action)
         self.mode_action_group.addAction(quad_bezier_action)
@@ -75,6 +81,8 @@ class MyWindow(QMainWindow):
         text = action.text()
         if text == "Pan":
             self.canvas.changeCanvasMode(CanvasModes.FREE_MOVE)
+        elif text == "Select": # --- NEW ---
+            self.canvas.changeCanvasMode(CanvasModes.SELECTION_MODE)
         elif text == "Line":
             self.canvas.changeCanvasMode(CanvasModes.LINE_CREATION)
         elif text == "Polyline":
