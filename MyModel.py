@@ -1,52 +1,76 @@
 # MyModel.py
 from MyShapes import Shape, MyPoint
+from MyGraph import MyGraph # --- NEW ---
 import math
 
 class MyModel:
     def __init__(self):
         self.m_shapes = []
-        self.m_selected_shapes = [] # --- NEW ---
+        self.m_selected_shapes = [] 
+        self.m_intersection_points = [] # --- MODIFIED --- (was None)
+        self.m_graph: MyGraph = None   # --- NEW ---
 
     def getShapes(self):
         return self.m_shapes
     
-    # --- NEW ---
     def get_selected_shapes(self):
         return self.m_selected_shapes
+    
+    def get_intersection_points(self):
+        return self.m_intersection_points
+        
+    # --- NEW ---
+    def get_graph(self) -> MyGraph:
+        return self.m_graph
+
+    # --- MODIFIED ---
+    def set_intersection_points(self, points_list: list[MyPoint]):
+        self.m_intersection_points = points_list
+
+    def clear_intersections(self):
+        self.m_intersection_points.clear()
+
+    # --- NEW ---
+    def set_graph(self, graph: MyGraph):
+        self.m_graph = graph
+        
+    # --- NEW ---
+    def clear_graph(self):
+        if self.m_graph:
+            self.m_graph.clear()
+        self.m_graph = None
 
     def addShape(self, shape: Shape):
         self.m_shapes.append(shape)
 
-    # --- NEW ---
     def add_to_selection(self, shape: Shape):
         if shape not in self.m_selected_shapes:
             self.m_selected_shapes.append(shape)
 
-    # --- NEW ---
     def remove_from_selection(self, shape: Shape):
         if shape in self.m_selected_shapes:
             self.m_selected_shapes.remove(shape)
 
-    # --- NEW ---
     def clear_selection(self):
         self.m_selected_shapes.clear()
+        self.clear_intersections()
+        self.clear_graph() # --- NEW ---
 
     def isEmpty(self):
         return len(self.m_shapes) == 0
     
     def getBoundBox(self):
+        # ... (this function is unchanged)
         if self.isEmpty():
             return -1000.0, 1000.0, -1000.0, 1000.0
         
-        # --- MODIFIED ---: Get bounding box of all shapes, not just the first
         first_shape = self.m_shapes[0]
         xmin, xmax, ymin, ymax = first_shape.get_bounding_box()
-        if xmin == xmax and ymin == ymax: # Handle single point case
+        if xmin == xmax and ymin == ymax: 
             xmin, xmax, ymin, ymax = first_shape.get_control_points()[0].getX(), \
                                      first_shape.get_control_points()[0].getX(), \
                                      first_shape.get_control_points()[0].getY(), \
                                      first_shape.get_control_points()[0].getY()
-
 
         for i in range(1, len(self.m_shapes)):
             s_xmin, s_xmax, s_ymin, s_ymax = self.m_shapes[i].get_bounding_box()
@@ -55,7 +79,6 @@ class MyModel:
             if s_ymin < ymin: ymin = s_ymin
             if s_ymax > ymax: ymax = s_ymax
             
-        # --- NEW ---: Add a small margin if bounds are zero
         if abs(xmin - xmax) < 1e-6:
             xmin -= 1.0
             xmax += 1.0
@@ -68,14 +91,10 @@ class MyModel:
     def clear(self):
         """Removes all shapes from the model."""
         self.m_shapes.clear()
-        self.clear_selection() # --- NEW ---
-    
-    # --- NEW ---
+        self.clear_selection() # This already clears intersections and graph
+
     def find_closest_shape(self, query_point: MyPoint, tolerance: float):
-        """
-        Finds the closest shape to a query point within a given tolerance.
-        Returns (shape, distance) or (None, float_max) if no shape is close.
-        """
+        # ... (this function is unchanged)
         min_dist = float('inf')
         closest_shape = None
 
