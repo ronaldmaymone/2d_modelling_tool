@@ -1,15 +1,13 @@
-# MyCanvas.py
 from PySide6 import QtOpenGLWidgets
 from PySide6.QtCore import Qt, QPointF
 from PySide6.QtGui import QWheelEvent
 from OpenGL.GL import *
 from MyModel import MyModel
-from MyGraph import MyGraph # --- NEW ---
+from MyGraph import GraphEdge, GraphNode, MyGraph # --- NEW ---
 from MyShapes import (
-    MyPoint, MyLine, MyQuadBezier, MyCubicBezier, MyCircle, 
+    MyPoint, MyLine, MyPolygon, MyQuadBezier, MyCubicBezier, MyCircle, 
     MyCircleArc, MyPolyline, Shape, check_box_intersection
 )
-# --- MODIFIED ---
 from MyGeometry import find_segment_intersection, point_on_segment, dist_sq
 from enum import Enum
 import math
@@ -26,7 +24,6 @@ class CanvasModes(Enum):
     SELECTION_MODE = 7
 
 class HoverManager:
-    # ... (class is unchanged)
     def __init__(self, pixel_box_size=10.0):
         self.m_hovered_shape: Shape = None
         self.m_closest_point_on_shape: MyPoint = None
@@ -134,12 +131,12 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         glLoadIdentity()
         if self.m_model is None: return
 
-        # --- MODIFIED ---: Get graph for rendering
         graph = self.m_model.get_graph()
         selected_shapes = self.m_model.get_selected_shapes()
         glLineWidth(2.0)
 
         # Draw unselected shapes
+        # ... (This logic is unchanged)
         glColor3f(0.0, 0.0, 1.0) # Blue
         for shape in self.m_model.getShapes():
             if shape in selected_shapes:
@@ -156,10 +153,16 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
             glEnd()
             glColor3f(0.0, 0.0, 1.0) 
 
-        # --- MODIFIED ---: Draw selected shapes OR graph
+        # --- MODIFIED ---: Draw selected shapes OR graph + faces
         if graph:
-            # If graph exists, draw it instead of the selected shapes
-            
+            # --- NEW ---: Draw Found Faces
+            glColor4f(0.0, 0.8, 0.0, 0.3) # Semi-transparent green
+            for face in self.m_model.get_found_faces():
+                glBegin(face.get_gl_primitive())
+                for vtx in face.get_tessellated_points():
+                    glVertex2f(vtx.getX(), vtx.getY())
+                glEnd()
+
             # 1. Draw Graph Edges
             glColor3f(0.0, 0.5, 0.0) # Dark Green
             glLineWidth(2.0)
@@ -179,6 +182,7 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         
         else:
             # No graph, just draw selected shapes normally
+            # ... (This logic is unchanged)
             glColor3f(0.0, 1.0, 0.0) # Green
             glLineWidth(3.0) 
             for shape in selected_shapes:
@@ -198,7 +202,6 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
 
         # --- Draw creation previews ---
         if self.m_temp_point and self.m_creating_shape_points:
-            # ... (unchanged)
             glPointSize(6.0)
             glColor3f(0.0, 0.8, 0.0)
             glBegin(GL_POINTS)
@@ -418,11 +421,12 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         if mode != CanvasModes.SELECTION_MODE:
             self.m_hover_manager.clear()
             self.m_model.clear_intersections()
-            self.m_model.clear_graph() # Clear graph when switching modes
+            self.m_model.clear_graph()
+            self.m_model.clear_found_faces() # --- NEW ---
         
         if mode not in [CanvasModes.FREE_MOVE, CanvasModes.SELECTION_MODE]:
             if self.m_model:
-                self.m_model.clear_selection() # This clears graph/intersections too
+                self.m_model.clear_selection() # This clears everything else
         
         self.update()
 
@@ -506,7 +510,6 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         zoom_factor = 1.1 if event.angleDelta().y() < 0 else 1 / 1.1
         self.scaleWorldWindow(zoom_factor)
 
-    # --- NEW / RENAMED ---
     def build_intersection_graph(self):
         """Finds intersections, shatters segments, and builds the planar graph."""
         if self.m_model is None:
@@ -514,6 +517,7 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
             
         self.m_model.clear_intersections()
         self.m_model.clear_graph()
+        self.m_model.clear_found_faces() # --- NEW ---
         
         selected_shapes = self.m_model.get_selected_shapes()
         if len(selected_shapes) < 2:
@@ -526,45 +530,42 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
         all_segments = []
 
         # 1. Get all segments from all selected shapes
+        # ... (this logic is unchanged)
         for shape in selected_shapes:
             points = shape.get_tessellated_points()
             if not points:
                 continue
             is_loop = (shape.get_gl_primitive() == GL_LINE_LOOP)
-            
             for i in range(len(points) - 1):
                 all_segments.append( (points[i], points[i+1], shape) )
             if is_loop and len(points) > 1:
                 all_segments.append( (points[-1], points[0], shape) )
 
         # 2. Find all intersection points
+        # ... (this logic is unchanged)
         for i in range(len(all_segments)):
             for j in range(i + 1, len(all_segments)):
                 p1, p2, shape1 = all_segments[i]
                 p3, p4, shape2 = all_segments[j]
-
                 if shape1 == shape2:
-                    continue # Don't intersect segments from the same shape
-
+                    continue 
                 intersection_pt = find_segment_intersection(p1, p2, p3, p4)
                 if intersection_pt:
                     raw_intersection_points.append(intersection_pt)
         
         # 3. Create graph nodes
-        #    - Add all original vertices
+        # ... (this logic is unchanged)
         for p1, p2, shape in all_segments:
             graph.add_node(p1)
             graph.add_node(p2)
-        #    - Add all intersection points
         for pt in raw_intersection_points:
             graph.add_node(pt)
 
-        # 4. Create shattered edges (the core logic)
+        # 4. Create shattered edges
+        # ... (this logic is unchanged)
         for p1, p2, shape in all_segments:
             p1_node = graph.find_node_at(p1)
             p2_node = graph.find_node_at(p2)
-            
-            # Find all nodes that lie ON this segment
             nodes_on_segment = []
             for node in graph.get_nodes():
                 if node == p1_node or node == p2_node:
@@ -572,20 +573,84 @@ class MyCanvas(QtOpenGLWidgets.QOpenGLWidget):
                 if point_on_segment(node.point, p1, p2):
                     dist = dist_sq(p1_node.point, node.point)
                     nodes_on_segment.append((dist, node))
-            
-            # Sort the nodes by distance from p1
             nodes_on_segment.sort(key=lambda x: x[0])
-
-            # Create new edges between the sorted nodes
             current_node = p1_node
             for dist, next_node in nodes_on_segment:
                 graph.add_edge(current_node, next_node)
                 current_node = next_node
-            
-            # Add the final edge to the end of the segment
             graph.add_edge(current_node, p2_node)
 
         print(f"Graph built: {len(graph.get_nodes())} nodes, {len(graph.get_edges())} edges.")
         self.m_model.set_graph(graph)
         self.m_model.set_intersection_points(raw_intersection_points)
+        
+        # --- NEW ---: Call face finding
+        self.find_regions_from_graph(graph)
+        
         self.update()
+
+    def find_regions_from_graph(self, graph: MyGraph):
+        """Traverses the graph to find all closed faces."""
+        if graph is None:
+            return
+
+        graph.reset_visited_flags()
+        max_nodes_per_face = len(graph.get_nodes()) + 1
+        found_faces_count = 0
+
+        for start_edge in graph.get_edges():
+            # Try tracing from n1 -> n2
+            if not start_edge.visited_forward:
+                face_nodes = self._trace_face(start_edge, start_edge.n1, max_nodes_per_face)
+                if face_nodes:
+                    face_points = [node.point for node in face_nodes]
+                    self.m_model.add_found_face(MyPolygon(face_points))
+                    found_faces_count += 1
+            
+            # Try tracing from n2 -> n1
+            if not start_edge.visited_backward:
+                face_nodes = self._trace_face(start_edge, start_edge.n2, max_nodes_per_face)
+                if face_nodes:
+                    face_points = [node.point for node in face_nodes]
+                    self.m_model.add_found_face(MyPolygon(face_points))
+                    found_faces_count += 1
+        
+        print(f"Found {found_faces_count} faces.")
+
+    def _trace_face(self, start_edge: GraphEdge, start_node: GraphNode, max_nodes: int) -> list[GraphNode]:
+        """
+        Traces a single face (loop) in the graph using clockwise edge sorting.
+        Returns a list of nodes in the face, or None if no face is found.
+        """
+        current_edge = start_edge
+        current_node = start_node
+        
+        face_nodes = []
+        
+        for _ in range(max_nodes): # Safety break
+            # 1. Mark edge as visited from the node we're leaving
+            if current_edge.was_visited_from(current_node):
+                return None # This path was already part of another face
+            current_edge.set_visited(current_node)
+
+            # 2. Move to the next node
+            current_node = current_edge.get_other_node(current_node)
+            face_nodes.append(current_node)
+
+            # 3. Check if we're back at the start
+            if current_node == start_node:
+                if len(face_nodes) > 2: # A valid face must have at least 3 nodes
+                    return face_nodes
+                else:
+                    return None # Not a valid face (e.g., a line)
+
+            # 4. Find the next edge to take
+            sorted_edges = current_node.get_sorted_edges(incoming_edge=current_edge)
+            
+            if not sorted_edges:
+                return None # Dead end (dangling edge)
+            
+            # 5. Take the first clockwise edge
+            current_edge = sorted_edges[0]
+            
+        return None # Loop ran too long, likely an error

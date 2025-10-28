@@ -1,5 +1,5 @@
 # MyModel.py
-from MyShapes import Shape, MyPoint
+from MyShapes import MyPolygon, Shape, MyPoint
 from MyGraph import MyGraph # --- NEW ---
 import math
 
@@ -7,8 +7,9 @@ class MyModel:
     def __init__(self):
         self.m_shapes = []
         self.m_selected_shapes = [] 
-        self.m_intersection_points = [] # --- MODIFIED --- (was None)
-        self.m_graph: MyGraph = None   # --- NEW ---
+        self.m_intersection_points = []
+        self.m_graph: MyGraph = None   
+        self.m_found_faces: list[MyPolygon] = []
 
     def getShapes(self):
         return self.m_shapes
@@ -22,6 +23,17 @@ class MyModel:
     # --- NEW ---
     def get_graph(self) -> MyGraph:
         return self.m_graph
+    
+    def get_found_faces(self) -> list[MyPolygon]:
+        return self.m_found_faces
+        
+    # --- NEW ---
+    def add_found_face(self, polygon: MyPolygon):
+        self.m_found_faces.append(polygon)
+        
+    # --- NEW ---
+    def clear_found_faces(self):
+        self.m_found_faces.clear()
 
     # --- MODIFIED ---
     def set_intersection_points(self, points_list: list[MyPoint]):

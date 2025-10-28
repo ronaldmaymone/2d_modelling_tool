@@ -9,6 +9,10 @@ def dist_sq(p1: MyPoint, p2: MyPoint) -> float:
     dy = p1.getY() - p2.getY()
     return dx**2 + dy**2
 
+def get_angle(p1: MyPoint, p2: MyPoint) -> float:
+    """Calculates the angle (in radians) of the vector from p1 to p2."""
+    return math.atan2(p2.getY() - p1.getY(), p2.getX() - p1.getX())
+
 # --- NEW ---
 def point_on_segment(p: MyPoint, p1: MyPoint, p2: MyPoint, epsilon=1e-6) -> bool:
     """Checks if a point p lies on the line segment p1-p2."""

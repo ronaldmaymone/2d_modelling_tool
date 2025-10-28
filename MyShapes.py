@@ -335,3 +335,23 @@ class MyCircleArc(Shape):
     def find_closest_point(self, query_point: MyPoint) -> (MyPoint, float):
         # Approximate by checking tessellated segments
         return self._find_closest_point_on_polyline(query_point, self._tessellated_points, is_loop=False)
+    
+
+class MyPolygon(Shape):
+    """Represents a simple, non-self-intersecting polygon."""
+    def __init__(self, points: list[MyPoint]):
+        super().__init__()
+        self.control_points.extend(points)
+        # For a simple polygon, tessellated points are the same as control points
+        self._tessellated_points = self.control_points
+
+    def get_tessellated_points(self):
+        return self._tessellated_points
+
+    def get_gl_primitive(self):
+        # GL_TRIANGLE_FAN is a good, efficient way to draw a simple polygon
+        return GL_TRIANGLE_FAN
+
+    def find_closest_point(self, query_point: MyPoint) -> (MyPoint, float):
+        # Find closest point on the polygon's boundary (edges)
+        return self._find_closest_point_on_polyline(query_point, self._tessellated_points, is_loop=True)
